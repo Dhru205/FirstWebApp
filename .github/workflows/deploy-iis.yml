@@ -1,0 +1,51 @@
+name: Build and Deploy .NET Framework MVC to IIS
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build on GitHub-hosted Runner
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Restore NuGet packages
+      run: nuget restore FirstWebApp.sln
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1.1
+
+    - name: Build with MSBuild
+      run: msbuild FirstWebApp.sln /p:Configuration=Release
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-output
+        path: FirstWebApp\bin\Release\
+
+  deploy:
+    name: Deploy to IIS on Self-hosted Server
+    needs: build
+    runs-on: self-hosted
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-output
+        path: ./publish
+
+    - name: Stop IIS
+      run: iisreset /stop
+
+    - name: Copy files to IIS
+      run: xcopy /s /y ./publish\* C:\Users\naren\OneDrive\Documents\dotnet-publish
+
+    - name: Start IIS
+      run: iisreset /start
