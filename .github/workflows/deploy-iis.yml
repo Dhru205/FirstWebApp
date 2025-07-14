@@ -26,8 +26,9 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: build-output
-        path: FirstWebApp\bin\Release\
+       name: build-output
+       path: FirstWebApp\FirstWebApp\bin\Release\
+
 
   deploy:
     name: Deploy to IIS on Self-hosted Server
@@ -36,10 +37,11 @@ jobs:
 
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: build-output
         path: ./publish
+
 
     - name: Stop IIS
       run: iisreset /stop
