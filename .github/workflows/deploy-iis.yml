@@ -32,8 +32,11 @@ jobs:
             Write-Host "Publish folder contents:"
             Get-ChildItem -Recurse $publishDir
           } else {
+            Write-Host "WARNING: Publish folder not found. Listing known build folders:"
+            Get-ChildItem -Recurse "$env:GITHUB_WORKSPACE" | Where-Object { $_.PSIsContainer -and $_.Name -like "*Package*" }
             throw "Publish output folder not found: $publishDir"
           }
+
 
       - name: Debug - List possible publish folders
         run: |
