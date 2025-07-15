@@ -1,110 +1,73 @@
-name: Build & Deploy ASP.NET MVC 4.8 to IIS
+name: Build and Deploy .NET Framework MVC to IIS
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
 
 jobs:
-  build-and-deploy:
+  build:
+    name: Build on GitHub-hosted Runner
     runs-on: windows-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.3.1
+        uses: actions/checkout@v3
 
       - name: Restore NuGet packages
         run: nuget restore FirstWebApp.sln
 
-      - name: Build and publish to flat folder (raw output)
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Build and Publish to Folder
+        shell: powershell
         run: |
           $publishDir = "$env:GITHUB_WORKSPACE\publish"
           msbuild FirstWebApp\FirstWebApp.csproj `
             /t:Build `
             /p:Configuration=Release `
             /p:OutputPath=$publishDir
-      
-          if (Test-Path $publishDir) {
-            Write-Host "✅ Publish folder created at: $publishDir"
-            Get-ChildItem -Recurse $publishDir
-          } else {
-            Write-Host "❌ Publish folder NOT created!"
-            throw "Publish output folder not found: $publishDir"
-          }
 
-      - name: Show contents of publish folder
+          Write-Host "`n✅ Publish folder created at: $publishDir"
+          Get-ChildItem -Path $publishDir | Format-Table Mode, LastWriteTime, Length, Name -AutoSize
+
+      - name: Upload Published Output as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: publish/
+
+  deploy:
+    name: Deploy to IIS on Self-hosted Server
+    needs: build
+    runs-on: self-hosted
+
+    steps:
+      - name: Download Published Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: ./publish
+
+      - name: Stop IIS
+        shell: powershell
+        run: iisreset /stop
+
+      - name: Copy Files to IIS Site Folder
         shell: powershell
         run: |
-          $publishDir = "$env:GITHUB_WORKSPACE\publish"
-          if (Test-Path $publishDir) {
-            Write-Host "`n✅ Publish folder created at: $publishDir"
-            Get-ChildItem -Path $publishDir -Recurse | Format-List
-            Write-Host "`n`nStructured view with tree layout:`n"
-            Get-ChildItem -Path $publishDir -Recurse
-          } else {
-            Write-Host "❌ Publish folder not found: $publishDir"
-            throw "Missing publish folder."
+          $source = "$env:GITHUB_WORKSPACE\publish"
+          $destination = "C:\Users\HP\Documents\dotnet-publish"  # 👈 Update to your IIS folder if needed
+          
+          if (-Not (Test-Path $source)) {
+            throw "Publish folder not found: $source"
           }
 
+          Write-Host "`n Copying from $source to $destination..."
+          Remove-Item "$destination\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
 
-      - name: Debug - List possible publish folders
-        run: |
-          Write-Host "GitHub Workspace: $env:GITHUB_WORKSPACE"
-          Get-ChildItem -Recurse "$env:GITHUB_WORKSPACE" | Where-Object { $_.PSIsContainer -and $_.Name -like "*publish*" }
-
-      - name: Compress published output
-        run: |
-          $publishDir = "$env:GITHUB_WORKSPACE\publish\_PublishedWebsites\FirstWebApp"
-          if (-Not (Test-Path $publishDir)) {
-            throw "Expected publish output not found: $publishDir"
-          }
-          Compress-Archive -Path "$publishDir\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
-
-
-      - name: Download PuTTY tools
-        run: |
-          Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -OutFile pscp.exe
-          Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/plink.exe -OutFile plink.exe
-
-      - name: Write SSH private key
+      - name: Start IIS
         shell: powershell
-        run: |
-          $keyPath = "$env:GITHUB_WORKSPACE\id_rsa"
-          Set-Content -Path $keyPath -Value "${{ secrets.SSH_PRIVATE_KEY }}" -NoNewline
-          icacls $keyPath /inheritance:r
-          icacls $keyPath /grant:r "$($env:USERNAME):(R)"
-      
-      - name: Test SSH connection to server
-        shell: powershell
-        run: |
-          .\plink.exe -i id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "echo SSH connection works"
-
-
-
-      - name: Upload publish.zip to IIS server
-        shell: powershell
-        run: |
-          $username = "${{ secrets.SSH_USERNAME }}"
-          $remoteHost = "${{ secrets.SSH_HOST }}"
-          $remotePath = 'C:\Users\HP\Documents\publish.zip'
-      
-          if (-not $username -or -not $remoteHost) {
-            throw "❌ SSH_USERNAME or SSH_HOST is missing. Check GitHub secrets."
-          }
-      
-          $destination = "$($username)@$($remoteHost):`"$remotePath`""
-          Write-Host "Uploading to: $destination"
-      
-          .\pscp.exe -i id_rsa publish.zip $destination
-
-
-
-      - name: Unzip and restart IIS
-        run: |
-          .\plink.exe -i id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} `
-            "powershell -Command `
-              \"Expand-Archive -Force -Path 'C:\Users\HP\Documents\publish.zip' -DestinationPath 'C:\Users\HP\Documents\dotnet-publish'; `
-              Import-Module WebAdministration; `
-              Restart-WebSite -Name '${{ secrets.IIS_SITE_NAME }}'\""
+        run: iisreset /start
