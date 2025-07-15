@@ -34,7 +34,18 @@ jobs:
             throw "Publish output folder not found: $publishDir"
           }
 
-
+      - name: Check contents of publish output
+        run: |
+          $publishDir = "$env:GITHUB_WORKSPACE\publish\_PublishedWebsites\FirstWebApp"
+          if (Test-Path $publishDir) {
+            Write-Host "✅ Listing contents of: $publishDir"
+            Get-ChildItem -Recurse $publishDir | ForEach-Object {
+              Write-Host "$($_.FullName) - $($_.Length) bytes"
+            }
+          } else {
+            Write-Host "❌ Folder not found: $publishDir"
+            Get-ChildItem -Recurse "$env:GITHUB_WORKSPACE"
+          }
 
 
       - name: Debug - List possible publish folders
