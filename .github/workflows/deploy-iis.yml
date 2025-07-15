@@ -58,8 +58,9 @@ jobs:
       - name: Set source path and copy files
         shell: cmd
         run: |
-          set source=%GITHUB_WORKSPACE%\publish
-          xcopy /s /y "%source%\*" "C:\Users\HP\Documents\dotnet-publish"
+          set source=%GITHUB_WORKSPACE%\publish\_PublishedWebsites\FirstWebApp
+          xcopy /s /y "%source%\*" "C:\Users\HP\Documents\dotnet-publish\"
+
 
 
 
