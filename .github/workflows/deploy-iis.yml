@@ -18,10 +18,9 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore FirstWebApp.sln
 
-      - name: Build and publish to folder
+      - name: Build and publish to folder (clean)
         run: |
-          $publishDir = "$(Split-Path $env:GITHUB_WORKSPACE)\publish"
-          Write-Host "Publishing to: $publishDir"
+          $publishDir = "$env:GITHUB_WORKSPACE\publish"
           msbuild FirstWebApp\FirstWebApp.csproj `
             /p:Configuration=Release `
             /p:DeployOnBuild=true `
@@ -29,13 +28,14 @@ jobs:
             /p:PublishProvider=FileSystem `
             /p:PublishDir=$publishDir\
           if (Test-Path $publishDir) {
-            Write-Host "Publish folder contents:"
+            Write-Host "✅ Publish folder created at: $publishDir"
             Get-ChildItem -Recurse $publishDir
           } else {
-            Write-Host "WARNING: Publish folder not found. Listing known build folders:"
-            Get-ChildItem -Recurse "$env:GITHUB_WORKSPACE" | Where-Object { $_.PSIsContainer -and $_.Name -like "*Package*" }
+            Write-Host "❌ Publish folder NOT created!"
+            Get-ChildItem -Recurse "$env:GITHUB_WORKSPACE"
             throw "Publish output folder not found: $publishDir"
           }
+
 
 
       - name: Debug - List possible publish folders
