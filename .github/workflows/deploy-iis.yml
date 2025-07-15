@@ -1,4 +1,4 @@
-name: Build and Deploy ASP.NET MVC 4.8 to IIS
+name: Build & Deploy .NET Framework 4.8 to IIS via SSH
 
 on:
   push:
@@ -9,7 +9,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup MSBuild
@@ -18,32 +18,32 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore FirstWebApp.sln
 
-      - name: Build and Publish
+      - name: Build & Publish using MSBuild
         run: |
           msbuild FirstWebApp/FirstWebApp.csproj `
             /p:Configuration=Release `
             /p:DeployOnBuild=true `
             /p:WebPublishMethod=FileSystem `
-            /p:PublishUrl=published
+            /p:PublishUrl=publish
 
-      - name: Download PuTTY SCP and SSH tools
-        run: |
-          Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -OutFile pscp.exe
-          Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/plink.exe -OutFile plink.exe
+      - name: Compress published output
+        run: Compress-Archive -Path publish\* -DestinationPath publish.zip
 
-      - name: Write SSH private key to file
+      - name: Setup SSH key
         shell: powershell
         run: |
-          $key = @"
-          ${{ secrets.SSH_PRIVATE_KEY }}
-          "@
-          Set-Content -Path "id_rsa" -Value $key -NoNewline -Encoding ascii
+          mkdir $HOME\.ssh
+          Set-Content -Path $HOME\.ssh\id_rsa -Value "${{ secrets.SSH_PRIVATE_KEY }}" -NoNewline
+          & icacls "$HOME\.ssh\id_rsa" /inheritance:r
+          & icacls "$HOME\.ssh\id_rsa" /grant:r "$($env:USERNAME):(R)"
 
-      - name: Deploy published files via SCP
+      - name: Upload publish.zip via SSH
         run: |
-          .\pscp.exe -i id_rsa -r .\published\* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"~/dotnet-publish"
+          Invoke-WebRequest -Uri https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -OutFile pscp.exe
+          .\pscp.exe -i $HOME\.ssh\id_rsa publish.zip ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"C:\Users\HP\Documents\publish.zip"
 
-
-      - name: Restart IIS site via SSH
+      - name: Unzip and Restart IIS on server
         run: |
-          .\plink.exe -i id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "powershell -Command `"Import-Module WebAdministration; Restart-WebSite -Name '${{ secrets.IIS_SITE_NAME }}'`""
+          Invoke-WebRequest -Uri https://the.earth.li/~sgtatham/putty/latest/w64/plink.exe -OutFile plink.exe
+          .\plink.exe -i $HOME\.ssh\id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} `
+            "powershell -Command `"Expand-Archive -Force -Path 'C:\Users\HP\Documents\publish.zip' -DestinationPath 'C:\Users\HP\Documents\dotnet-publish'; Import-Module WebAdministration; Restart-WebSite -Name '${{ secrets.IIS_SITE_NAME }}'`""
