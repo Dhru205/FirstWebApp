@@ -18,22 +18,23 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore FirstWebApp.sln
 
-      - name: Build using MSBuild
+      - name: Build and publish to local folder
         run: |
+          $publishDir = "$env:GITHUB_WORKSPACE\publish"
           msbuild FirstWebApp\FirstWebApp.csproj `
             /p:Configuration=Release `
             /p:DeployOnBuild=true `
-            /p:WebPublishMethod=Package `
-            /p:PackageAsSingleFile=false `
-            /p:SkipInvalidConfigurations=true
+            /p:WebPublishMethod=FileSystem `
+            /p:PublishProvider=FileSystem `
+            /p:PublishDir=$publishDir\
 
-      - name: Compress published output (PackageTmp)
+      - name: Compress published output
         run: |
-          $packagePath = "$env:GITHUB_WORKSPACE\FirstWebApp\FirstWebApp\obj\Release\Package\PackageTmp"
-          if (-Not (Test-Path $packagePath)) {
-            throw "Publish output folder not found: $packagePath"
+          $publishPath = "$env:GITHUB_WORKSPACE\publish"
+          if (-Not (Test-Path $publishPath)) {
+            throw "Publish output folder not found: $publishPath"
           }
-          Compress-Archive -Path "$packagePath\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
+          Compress-Archive -Path "$publishPath\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
 
       - name: Download PuTTY tools
         run: |
@@ -52,7 +53,11 @@ jobs:
         run: |
           .\pscp.exe -i id_rsa publish.zip ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"C:\Users\HP\Documents\publish.zip"
 
-      - name: Unzip and Restart IIS
+
+      - name: Unzip and replace IIS site contents
         run: |
           .\plink.exe -i id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} `
-            "powershell -Command `"Expand-Archive -Force -Path 'C:\Users\HP\Documents\publish.zip' -DestinationPath 'C:\Users\HP\Documents\dotnet-publish'; Import-Module WebAdministration; Restart-WebSite -Name '${{ secrets.IIS_SITE_NAME }}'`""
+            "powershell -Command `
+              \"Expand-Archive -Force -Path 'C:\Users\HP\Documents\publish.zip' -DestinationPath 'C:\Users\HP\Documents\dotnet-publish'; `
+              Import-Module WebAdministration; `
+              Restart-WebSite -Name '${{ secrets.IIS_SITE_NAME }}'\""
