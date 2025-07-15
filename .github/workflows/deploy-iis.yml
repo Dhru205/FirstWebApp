@@ -55,12 +55,12 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -Command "iisreset /stop"
 
 
-      - name: Copy files to IIS
-        shell: powershell
+      - name: Set source path and copy files
+        shell: cmd
         run: |
-          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-          $source = "$env:GITHUB_WORKSPACE\publish"
-          Copy-Item "$source\*" -Destination "C:\Users\HP\Documents\dotnet-publish" -Recurse -Force
+          set source=%GITHUB_WORKSPACE%\publish
+          xcopy /s /y "%source%\*" "C:\Users\HP\Documents\dotnet-publish"
+
 
 
       - name: Start IIS
