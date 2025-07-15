@@ -59,7 +59,7 @@ jobs:
         shell: cmd
         run: |
           set source=%GITHUB_WORKSPACE%\publish\_PublishedWebsites\FirstWebApp
-          xcopy /s /y "%source%\*" "C:\Users\HP\Documents\dotnet-publish\"
+          xcopy /s /y "%source%\*" "C:\Users\naren\OneDrive\Documents\dotnet-publish"
 
 
 
