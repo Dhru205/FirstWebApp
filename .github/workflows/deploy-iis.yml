@@ -34,21 +34,6 @@ jobs:
             throw "Publish output folder not found: $publishDir"
           }
 
-      - name: Show contents of publish folder
-        shell: powershell
-        run: |
-          $publishDir = "$env:GITHUB_WORKSPACE\publish"
-          if (Test-Path $publishDir) {
-            Write-Host "`n✅ Publish folder created at: $publishDir"
-            Get-ChildItem -Path $publishDir -Recurse | Format-List
-            Write-Host "`n`nStructured view with tree layout:`n"
-            Get-ChildItem -Path $publishDir -Recurse
-          } else {
-            Write-Host "❌ Publish folder not found: $publishDir"
-            throw "Missing publish folder."
-          }
-
-
 
       - name: Debug - List possible publish folders
         run: |
@@ -62,8 +47,6 @@ jobs:
             throw "Expected publish output not found: $publishDir"
           }
           Compress-Archive -Path "$publishDir\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
-
-
 
 
       - name: Download PuTTY tools
@@ -80,8 +63,15 @@ jobs:
           icacls $keyPath /grant:r "$($env:USERNAME):(R)"
 
       - name: Upload publish.zip to IIS server
+        shell: powershell
         run: |
-          .\pscp.exe -i id_rsa publish.zip ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"C:\Users\HP\Documents\publish.zip"
+          $username = "${{ secrets.SSH_USERNAME }}"
+          $host = "${{ secrets.SSH_HOST }}"
+          if ([string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($host)) {
+            throw "❌ SSH_USERNAME or SSH_HOST is empty. Check your GitHub secrets."
+          }
+          .\pscp.exe -i id_rsa publish.zip "$username@$host:`"C:\Users\HP\Documents\publish.zip`""
+
 
       - name: Unzip and restart IIS
         run: |
