@@ -2,16 +2,14 @@ name: Build and Deploy ASP.NET MVC 4.8 to IIS
 
 on:
   push:
-    branches:
-      - master
+    branches: [master]
 
 jobs:
   build-and-deploy:
-    name: Build and Deploy to Remote IIS Server
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Setup MSBuild
@@ -20,7 +18,7 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore FirstWebApp.sln
 
-      - name: Build and publish the project
+      - name: Build and Publish
         run: |
           msbuild FirstWebApp/FirstWebApp.csproj `
             /p:Configuration=Release `
@@ -28,21 +26,23 @@ jobs:
             /p:WebPublishMethod=FileSystem `
             /p:PublishUrl=published
 
-      - name: Copy published files to IIS server via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "published/*"
-          target: "C:/Users/HP/Documents/dotnet-publish"
+      - name: Download PuTTY SCP and SSH tools
+        run: |
+          Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -OutFile pscp.exe
+          Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/plink.exe -OutFile plink.exe
+
+      - name: Write SSH private key
+        run: |
+          $env:SSH_PRIVATE_KEY | Out-File -FilePath "id_rsa" -Encoding ascii
+          icacls id_rsa /inheritance:r
+          icacls id_rsa /grant:r "$env:USERNAME:R"
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy published files via SCP
+        run: |
+          .\pscp.exe -i id_rsa -r .\published\* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"C:\Users\HP\Documents\dotnet-publish"
 
       - name: Restart IIS site via SSH
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            Import-Module WebAdministration
-            Restart-WebSite -Name "${{ secrets.IIS_SITE_NAME }}"
+        run: |
+          .\plink.exe -i id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "powershell -Command `"Import-Module WebAdministration; Restart-WebSite -Name '${{ secrets.IIS_SITE_NAME }}'`""
