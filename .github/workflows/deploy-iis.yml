@@ -18,23 +18,32 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore FirstWebApp.sln
 
-      - name: Build and publish to local folder
+      - name: Build and publish to folder
         run: |
-          $publishDir = "$env:GITHUB_WORKSPACE\publish"
+          $publishDir = "$(Split-Path $env:GITHUB_WORKSPACE)\publish"
+          Write-Host "Publishing to: $publishDir"
           msbuild FirstWebApp\FirstWebApp.csproj `
             /p:Configuration=Release `
             /p:DeployOnBuild=true `
             /p:WebPublishMethod=FileSystem `
             /p:PublishProvider=FileSystem `
             /p:PublishDir=$publishDir\
+          if (Test-Path $publishDir) {
+            Write-Host "Publish folder contents:"
+            Get-ChildItem -Recurse $publishDir
+          } else {
+            throw "Publish output folder not found: $publishDir"
+          }
+
+      - name: Debug - List possible publish folders
+        run: |
+          Write-Host "GitHub Workspace: $env:GITHUB_WORKSPACE"
+          Get-ChildItem -Recurse "$env:GITHUB_WORKSPACE" | Where-Object { $_.PSIsContainer -and $_.Name -like "*publish*" }
 
       - name: Compress published output
         run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\publish"
-          if (-Not (Test-Path $publishPath)) {
-            throw "Publish output folder not found: $publishPath"
-          }
-          Compress-Archive -Path "$publishPath\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
+          $publishDir = "$(Split-Path $env:GITHUB_WORKSPACE)\publish"
+          Compress-Archive -Path "$publishDir\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
 
       - name: Download PuTTY tools
         run: |
@@ -53,8 +62,7 @@ jobs:
         run: |
           .\pscp.exe -i id_rsa publish.zip ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"C:\Users\HP\Documents\publish.zip"
 
-
-      - name: Unzip and replace IIS site contents
+      - name: Unzip and restart IIS
         run: |
           .\plink.exe -i id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} `
             "powershell -Command `
