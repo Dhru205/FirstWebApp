@@ -18,14 +18,13 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore FirstWebApp.sln
 
-      - name: Build and publish to folder (working version)
+      - name: Build and publish to flat folder (raw output)
         run: |
           $publishDir = "$env:GITHUB_WORKSPACE\publish"
-          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" `
-            FirstWebApp\FirstWebApp.csproj `
+          msbuild FirstWebApp\FirstWebApp.csproj `
+            /t:Build `
             /p:Configuration=Release `
-            /p:OutputPath=$publishDir `
-            /t:Build
+            /p:OutputPath=$publishDir
       
           if (Test-Path $publishDir) {
             Write-Host "✅ Publish folder created at: $publishDir"
@@ -34,6 +33,7 @@ jobs:
             Write-Host "❌ Publish folder NOT created!"
             throw "Publish output folder not found: $publishDir"
           }
+
 
 
 
