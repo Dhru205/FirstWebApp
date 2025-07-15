@@ -44,8 +44,14 @@ jobs:
 
       - name: Compress published output
         run: |
-          $publishDir = "$(Split-Path $env:GITHUB_WORKSPACE)\publish"
+          $publishDir = "$env:GITHUB_WORKSPACE\publish\_PublishedWebsites\FirstWebApp"
+          if (-Not (Test-Path $publishDir)) {
+            throw "Expected publish output not found: $publishDir"
+          }
           Compress-Archive -Path "$publishDir\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
+
+
+
 
       - name: Download PuTTY tools
         run: |
