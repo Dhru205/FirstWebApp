@@ -31,13 +31,13 @@ jobs:
           Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -OutFile pscp.exe
           Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/plink.exe -OutFile plink.exe
 
-      - name: Write SSH private key
+      - name: Write SSH private key to file
+        shell: powershell
         run: |
-          $env:SSH_PRIVATE_KEY | Out-File -FilePath "id_rsa" -Encoding ascii
-          icacls id_rsa /inheritance:r
-          icacls id_rsa /grant:r "$env:USERNAME:R"
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          $key = @"
+          ${{ secrets.SSH_PRIVATE_KEY }}
+          "@
+          Set-Content -Path "id_rsa" -Value $key -NoNewline -Encoding ascii
 
       - name: Deploy published files via SCP
         run: |
