@@ -1,4 +1,4 @@
-name: Build & Deploy .NET Framework 4.8 to IIS via SSH
+name: Build & Deploy ASP.NET MVC 4.8 to IIS
 
 on:
   push:
@@ -18,41 +18,41 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore FirstWebApp.sln
 
-      - name: Build & Publish using MSBuild
+      - name: Build using MSBuild
         run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\publish"
-          msbuild .\FirstWebApp\FirstWebApp.csproj `
+          msbuild FirstWebApp\FirstWebApp.csproj `
             /p:Configuration=Release `
             /p:DeployOnBuild=true `
-            /p:WebPublishMethod=FileSystem `
-            /p:PublishUrl=$publishPath
+            /p:WebPublishMethod=Package `
+            /p:PackageAsSingleFile=false `
+            /p:SkipInvalidConfigurations=true
 
-      - name: Confirm publish folder exists
+      - name: Compress published output (PackageTmp)
         run: |
-          if (-Not (Test-Path "$env:GITHUB_WORKSPACE\publish")) {
-            throw "Publish folder not found!"
+          $packagePath = "$env:GITHUB_WORKSPACE\FirstWebApp\FirstWebApp\obj\Release\Package\PackageTmp"
+          if (-Not (Test-Path $packagePath)) {
+            throw "Publish output folder not found: $packagePath"
           }
+          Compress-Archive -Path "$packagePath\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
 
-      - name: Compress published output
-        run: Compress-Archive -Path "$env:GITHUB_WORKSPACE\publish\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
+      - name: Download PuTTY tools
+        run: |
+          Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -OutFile pscp.exe
+          Invoke-WebRequest https://the.earth.li/~sgtatham/putty/latest/w64/plink.exe -OutFile plink.exe
 
-
-
-      - name: Setup SSH key
+      - name: Write SSH private key
         shell: powershell
         run: |
-          mkdir $HOME\.ssh
-          Set-Content -Path $HOME\.ssh\id_rsa -Value "${{ secrets.SSH_PRIVATE_KEY }}" -NoNewline
-          & icacls "$HOME\.ssh\id_rsa" /inheritance:r
-          & icacls "$HOME\.ssh\id_rsa" /grant:r "$($env:USERNAME):(R)"
+          $keyPath = "$env:GITHUB_WORKSPACE\id_rsa"
+          Set-Content -Path $keyPath -Value "${{ secrets.SSH_PRIVATE_KEY }}" -NoNewline
+          icacls $keyPath /inheritance:r
+          icacls $keyPath /grant:r "$($env:USERNAME):(R)"
 
-      - name: Upload publish.zip via SSH
+      - name: Upload publish.zip to IIS server
         run: |
-          Invoke-WebRequest -Uri https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -OutFile pscp.exe
-          .\pscp.exe -i $HOME\.ssh\id_rsa publish.zip ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"C:\Users\HP\Documents\publish.zip"
+          .\pscp.exe -i id_rsa publish.zip ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"C:\Users\HP\Documents\publish.zip"
 
-      - name: Unzip and Restart IIS on server
+      - name: Unzip and Restart IIS
         run: |
-          Invoke-WebRequest -Uri https://the.earth.li/~sgtatham/putty/latest/w64/plink.exe -OutFile plink.exe
-          .\plink.exe -i $HOME\.ssh\id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} `
+          .\plink.exe -i id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} `
             "powershell -Command `"Expand-Archive -Force -Path 'C:\Users\HP\Documents\publish.zip' -DestinationPath 'C:\Users\HP\Documents\dotnet-publish'; Import-Module WebAdministration; Restart-WebSite -Name '${{ secrets.IIS_SITE_NAME }}'`""
