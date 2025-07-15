@@ -75,6 +75,13 @@ jobs:
           Set-Content -Path $keyPath -Value "${{ secrets.SSH_PRIVATE_KEY }}" -NoNewline
           icacls $keyPath /inheritance:r
           icacls $keyPath /grant:r "$($env:USERNAME):(R)"
+      
+      - name: Test SSH connection to server
+        shell: powershell
+        run: |
+          .\plink.exe -i id_rsa -batch ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "echo SSH connection works"
+
+
 
       - name: Upload publish.zip to IIS server
         shell: powershell
@@ -84,14 +91,13 @@ jobs:
           $remotePath = 'C:\Users\HP\Documents\publish.zip'
       
           if (-not $username -or -not $remoteHost) {
-            throw "SSH_USERNAME or SSH_HOST is missing. Check your GitHub secrets."
+            throw "❌ SSH_USERNAME or SSH_HOST is missing. Check GitHub secrets."
           }
       
           $destination = "$($username)@$($remoteHost):`"$remotePath`""
-          Write-Host "Uploading to $destination"
+          Write-Host "Uploading to: $destination"
       
           .\pscp.exe -i id_rsa publish.zip $destination
-
 
 
 
