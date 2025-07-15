@@ -1,4 +1,4 @@
-name: Build and Deploy .NET Framework MVC to IIS
+name: Build and Deploy ASP.NET MVC 4.8 to IIS
 
 on:
   push:
@@ -6,48 +6,43 @@ on:
       - master
 
 jobs:
-  build:
-    name: Build on GitHub-hosted Runner
+  build-and-deploy:
+    name: Build and Deploy to Remote IIS Server
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Restore NuGet packages
-      run: nuget restore FirstWebApp.sln
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.3.1
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1.1
+      - name: Restore NuGet packages
+        run: nuget restore FirstWebApp.sln
 
-    - name: Build with MSBuild
-      run: msbuild FirstWebApp.sln /p:Configuration=Release
+      - name: Build and publish the project
+        run: |
+          msbuild FirstWebApp/FirstWebApp.csproj `
+            /p:Configuration=Release `
+            /p:DeployOnBuild=true `
+            /p:WebPublishMethod=FileSystem `
+            /p:PublishUrl=published
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-       name: build-output
-       path: FirstWebApp\FirstWebApp\bin\Release\
+      - name: Copy published files to IIS server via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "published/*"
+          target: "C:/Users/HP/Documents/dotnet-publish"
 
-
-  deploy:
-    name: Deploy to IIS on Self-hosted Server
-    needs: build
-    runs-on: self-hosted
-
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: build-output
-        path: ./publish
-
-
-    - name: Stop IIS
-      run: iisreset /stop
-
-    - name: Copy files to IIS
-      run: xcopy /s /y ./publish\* C:\Users\naren\OneDrive\Documents\dotnet-publish
-
-    - name: Start IIS
-      run: iisreset /start
+      - name: Restart IIS site via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            Import-Module WebAdministration
+            Restart-WebSite -Name "${{ secrets.IIS_SITE_NAME }}"
