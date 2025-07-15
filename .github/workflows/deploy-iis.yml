@@ -21,16 +21,21 @@ jobs:
       - name: Build & Publish using MSBuild
         run: |
           $publishPath = "$env:GITHUB_WORKSPACE\publish"
-          msbuild FirstWebApp\FirstWebApp.csproj `
+          msbuild .\FirstWebApp\FirstWebApp.csproj `
             /p:Configuration=Release `
             /p:DeployOnBuild=true `
             /p:WebPublishMethod=FileSystem `
             /p:PublishUrl=$publishPath
 
-      - name: Compress published output
+      - name: Confirm publish folder exists
         run: |
-          $publishPath = "$env:GITHUB_WORKSPACE\publish"
-          Compress-Archive -Path "$publishPath\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
+          if (-Not (Test-Path "$env:GITHUB_WORKSPACE\publish")) {
+            throw "Publish folder not found!"
+          }
+
+      - name: Compress published output
+        run: Compress-Archive -Path "$env:GITHUB_WORKSPACE\publish\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
+
 
 
       - name: Setup SSH key
