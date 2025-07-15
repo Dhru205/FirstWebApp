@@ -81,8 +81,16 @@ jobs:
         run: |
           $username = "${{ secrets.SSH_USERNAME }}"
           $remoteHost = "${{ secrets.SSH_HOST }}"
-          $destination = "$($username)@$($remoteHost):'C:\Users\HP\Documents\publish.zip'"
+      
+          if (-not $username -or -not $remoteHost) {
+            throw "❌ SSH_USERNAME or SSH_HOST is missing. Please check your GitHub secrets."
+          }
+      
+          $destination = "$username@$remoteHost:`'C:\Users\HP\Documents\publish.zip`'"
+          Write-Host "📦 Uploading to $destination"
+          
           .\pscp.exe -i id_rsa publish.zip $destination
+
 
 
       - name: Unzip and restart IIS
