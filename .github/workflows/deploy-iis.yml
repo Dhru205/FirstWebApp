@@ -51,8 +51,8 @@ jobs:
           path: ./publish
 
       - name: Stop IIS
-        shell: powershell
-        run: iisreset /stop
+        run: powershell -ExecutionPolicy Bypass -Command "iisreset /stop"
+
 
       - name: Copy Files to IIS Site Folder
         shell: powershell
@@ -69,5 +69,5 @@ jobs:
           Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
 
       - name: Start IIS
-        shell: powershell
-        run: iisreset /start
+        run: powershell -ExecutionPolicy Bypass -Command "iisreset /start"
+
