@@ -84,13 +84,14 @@ jobs:
           $remotePath = 'C:\Users\HP\Documents\publish.zip'
       
           if (-not $username -or -not $remoteHost) {
-            throw "❌ SSH_USERNAME or SSH_HOST is missing. Check your GitHub secrets."
+            throw "SSH_USERNAME or SSH_HOST is missing. Check your GitHub secrets."
           }
       
           $destination = "$($username)@$($remoteHost):`"$remotePath`""
-          Write-Host "📦 Uploading to $destination"
+          Write-Host "Uploading to $destination"
       
           .\pscp.exe -i id_rsa publish.zip $destination
+
 
 
 
