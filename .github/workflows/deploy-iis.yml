@@ -41,7 +41,8 @@ jobs:
 
       - name: Deploy published files via SCP
         run: |
-          .\pscp.exe -i id_rsa -r .\published\* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"C:\Users\HP\Documents\dotnet-publish"
+          .\pscp.exe -i id_rsa -r .\published\* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:"~/dotnet-publish"
+
 
       - name: Restart IIS site via SSH
         run: |
