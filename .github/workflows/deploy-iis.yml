@@ -80,10 +80,9 @@ jobs:
         shell: powershell
         run: |
           $username = "${{ secrets.SSH_USERNAME }}"
-          $host = "${{ secrets.SSH_HOST }}"
-          $destination = "$($username)@$($host):'C:\Users\HP\Documents\publish.zip'"
+          $remoteHost = "${{ secrets.SSH_HOST }}"
+          $destination = "$($username)@$($remoteHost):'C:\Users\HP\Documents\publish.zip'"
           .\pscp.exe -i id_rsa publish.zip $destination
-
 
 
       - name: Unzip and restart IIS
