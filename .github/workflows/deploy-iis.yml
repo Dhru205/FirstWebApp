@@ -51,6 +51,7 @@ jobs:
           path: ./publish
 
       - name: Stop IIS
+        shell: cmd
         run: powershell -ExecutionPolicy Bypass -Command "iisreset /stop"
 
 
@@ -69,5 +70,6 @@ jobs:
           Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
 
       - name: Start IIS
+        shell: cmd
         run: powershell -ExecutionPolicy Bypass -Command "iisreset /start"
 
