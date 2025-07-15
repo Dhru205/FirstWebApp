@@ -55,19 +55,13 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -Command "iisreset /stop"
 
 
-      - name: Copy Files to IIS Site Folder
+      - name: Copy files to IIS
         shell: powershell
         run: |
+          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
           $source = "$env:GITHUB_WORKSPACE\publish"
-          $destination = "C:\Users\HP\Documents\dotnet-publish"  # 👈 Update to your IIS folder if needed
-          
-          if (-Not (Test-Path $source)) {
-            throw "Publish folder not found: $source"
-          }
+          Copy-Item "$source\*" -Destination "C:\Users\HP\Documents\dotnet-publish" -Recurse -Force
 
-          Write-Host "`n Copying from $source to $destination..."
-          Remove-Item "$destination\*" -Recurse -Force -ErrorAction SilentlyContinue
-          Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
 
       - name: Start IIS
         shell: cmd
