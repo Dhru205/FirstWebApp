@@ -20,14 +20,18 @@ jobs:
 
       - name: Build & Publish using MSBuild
         run: |
-          msbuild FirstWebApp/FirstWebApp.csproj `
+          $publishPath = "$env:GITHUB_WORKSPACE\publish"
+          msbuild FirstWebApp\FirstWebApp.csproj `
             /p:Configuration=Release `
             /p:DeployOnBuild=true `
             /p:WebPublishMethod=FileSystem `
-            /p:PublishUrl=publish
+            /p:PublishUrl=$publishPath
 
       - name: Compress published output
-        run: Compress-Archive -Path publish\* -DestinationPath publish.zip
+        run: |
+          $publishPath = "$env:GITHUB_WORKSPACE\publish"
+          Compress-Archive -Path "$publishPath\*" -DestinationPath "$env:GITHUB_WORKSPACE\publish.zip"
+
 
       - name: Setup SSH key
         shell: powershell
