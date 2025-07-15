@@ -34,18 +34,20 @@ jobs:
             throw "Publish output folder not found: $publishDir"
           }
 
-      - name: Check contents of publish output
+      - name: Show contents of publish folder
+        shell: powershell
         run: |
-          $publishDir = "$env:GITHUB_WORKSPACE\publish\_PublishedWebsites\FirstWebApp"
+          $publishDir = "$env:GITHUB_WORKSPACE\publish"
           if (Test-Path $publishDir) {
-            Write-Host "✅ Listing contents of: $publishDir"
-            Get-ChildItem -Recurse $publishDir | ForEach-Object {
-              Write-Host "$($_.FullName) - $($_.Length) bytes"
-            }
+            Write-Host "`n✅ Publish folder created at: $publishDir"
+            Get-ChildItem -Path $publishDir -Recurse | Format-List
+            Write-Host "`n`nStructured view with tree layout:`n"
+            Get-ChildItem -Path $publishDir -Recurse
           } else {
-            Write-Host "❌ Folder not found: $publishDir"
-            Get-ChildItem -Recurse "$env:GITHUB_WORKSPACE"
+            Write-Host "❌ Publish folder not found: $publishDir"
+            throw "Missing publish folder."
           }
+
 
 
       - name: Debug - List possible publish folders
